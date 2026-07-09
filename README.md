@@ -4,7 +4,10 @@ Web app for goldfishing a Magic: The Gathering Commander deck — paste a
 decklist, draw sample opening hands, test London mulligans, and measure how
 consistently the deck delivers keepable hands.
 
-## Run
+**Live app:** https://tonka13.github.io/magicGoldfish/ (auto-deployed from
+`main` by GitHub Actions)
+
+## Run locally
 
 ```
 npm install
