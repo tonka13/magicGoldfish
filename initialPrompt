@@ -1,0 +1,32 @@
+I want a web app for goldfishing a Magic: The Gathering Commander
+deck — I want to test how consistently my deck delivers a good
+opening hand.
+
+Core behavior:
+- Let me paste a Commander decklist in standard MTG text format
+  (lines like "1 Sol Ring", "1 Command Tower", with a commander
+  possibly marked separately). Parse it reliably and ignore any
+  set codes or collector numbers.
+- Draw a random 7-card opening hand. The commander starts in the
+  command zone, so hands are drawn from the 99, not the full 100.
+- Let me draw hands one at a time, redrawing as many times as I
+  want, OR give a number N and have it draw that many hands at once
+  so I can test a batch.
+- London mulligan support so I can test mulligan decisions.
+- Show each hand clearly and let me reshuffle/reset easily.
+
+Analysis:
+- For each hand, break down the cards by type — lands, creatures,
+  instants, sorceries, artifacts, enchantments, planeswalkers — so
+  I can see the composition at a glance.
+- Across a batch of N hands, give me summary stats: average lands
+  per hand, how often I hit a keepable land count, and the average
+  type breakdown, so I can judge the deck's consistency.
+
+Export:
+- Let me export the drawn hands as CSV so I can save and analyze
+  them in a spreadsheet — include the card lists per hand plus the
+  per-hand and summary stats.
+
+Make it clean and immediately usable, and handle a messy paste
+(extra whitespace, blank lines, section headers) gracefully.
