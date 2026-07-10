@@ -12,10 +12,10 @@ function row(...fields: (string | number)[]): string {
   return fields.map(csvField).join(',');
 }
 
-/** Types worth a CSV column (Unknown included only if it ever occurs). */
+/** Types worth a CSV column — only those that actually occur in the hands. */
 function activeTypes(hands: Card[][]) {
-  const anyUnknown = hands.some((h) => h.some((c) => c.primaryType === 'Unknown'));
-  return CARD_TYPES.filter((t) => t !== 'Unknown' || anyUnknown);
+  const seen = new Set(hands.flatMap((h) => h.map((c) => c.primaryType)));
+  return CARD_TYPES.filter((t) => seen.has(t));
 }
 
 export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
@@ -24,7 +24,16 @@ export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
   const lines: string[] = [];
 
   lines.push(
-    row('Hand #', 'Cards', 'Mulligans', ...types, 'Lands', 'Mana sources', 'Keepable'),
+    row(
+      'Hand #',
+      'Cards',
+      'Mulligans',
+      ...types,
+      'Lands',
+      'Mana sources',
+      'Curves out',
+      'Keepable',
+    ),
   );
 
   hands.forEach((hand, i) => {
@@ -37,6 +46,7 @@ export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
         ...types.map((t) => analysis.typeCounts[t]),
         analysis.landCount,
         analysis.manaSources,
+        analysis.curvesOut ? 'Y' : 'N',
         analysis.keepable ? 'Y' : 'N',
       ),
     );
@@ -51,6 +61,7 @@ export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
   if (producersCounted(config)) {
     lines.push(row('Average mana sources per hand', stats.avgManaSources.toFixed(2)));
   }
+  lines.push(row('Hands curving out (turns 1–3)', `${stats.curveOutPct.toFixed(1)}%`));
   lines.push(row('Keepable hands', `${stats.keepablePct.toFixed(1)}%`));
   for (const type of types) {
     lines.push(row(`Average ${type}s per hand`, stats.avgTypeCounts[type].toFixed(2)));

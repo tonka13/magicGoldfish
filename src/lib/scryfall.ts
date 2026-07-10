@@ -1,5 +1,5 @@
-const CACHE_KEY = 'goldfish-cards-v2';
-const OLD_CACHE_KEYS = ['goldfish-typelines-v1'];
+const CACHE_KEY = 'goldfish-cards-v3';
+const OLD_CACHE_KEYS = ['goldfish-typelines-v1', 'goldfish-cards-v2'];
 const BATCH_SIZE = 75; // Scryfall /cards/collection limit
 const BATCH_DELAY_MS = 120;
 
@@ -10,6 +10,7 @@ export interface CardData {
   typeLine: string;
   producedMana: string[];
   manaValue: number | null;
+  manaCost: string | null;
   colorIdentity: string[];
 }
 
@@ -19,6 +20,7 @@ interface CacheEntry {
   n?: string;
   m?: string[];
   c?: number;
+  mc?: string;
   i?: string[];
 }
 
@@ -39,6 +41,7 @@ function fromEntry(entry: CacheEntry): CardData {
     typeLine: entry.t,
     producedMana: entry.m ?? [],
     manaValue: entry.c ?? null,
+    manaCost: entry.mc ?? null,
     colorIdentity: entry.i ?? [],
   };
 }
@@ -48,6 +51,7 @@ function toEntry(data: CardData): CacheEntry {
   if (data.oracleName) entry.n = data.oracleName;
   if (data.producedMana.length) entry.m = data.producedMana;
   if (data.manaValue !== null) entry.c = data.manaValue;
+  if (data.manaCost !== null) entry.mc = data.manaCost;
   if (data.colorIdentity.length) entry.i = data.colorIdentity;
   return entry;
 }
@@ -79,8 +83,9 @@ interface ScryfallCard {
   type_line?: string;
   produced_mana?: string[];
   cmc?: number;
+  mana_cost?: string;
   color_identity?: string[];
-  card_faces?: { name: string; type_line?: string }[];
+  card_faces?: { name: string; type_line?: string; mana_cost?: string }[];
 }
 
 const SCRYFALL_HEADERS = {
@@ -97,6 +102,8 @@ function toCardData(card: ScryfallCard): CardData {
     typeLine: card.type_line ?? card.card_faces?.[0]?.type_line ?? 'Unknown',
     producedMana: card.produced_mana ?? [],
     manaValue: card.cmc ?? null,
+    // DFCs carry costs on their faces; what's in hand casts as the front.
+    manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? null,
     colorIdentity: card.color_identity ?? [],
   };
 }

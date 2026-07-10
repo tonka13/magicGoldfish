@@ -53,14 +53,15 @@ export function producersCounted(config: KeepableConfig): boolean {
 
 /** Human-readable summary of the keepable definition (UI hints + CSV). */
 export function describeKeepable(config: KeepableConfig): string {
+  const curve = config.requireCurve ? ', with a castable turn 1–3 curve' : '';
   if (!producersCounted(config)) {
-    return `${config.minSources}–${config.maxLands} lands`;
+    return `${config.minSources}–${config.maxLands} lands${curve}`;
   }
   const kinds = [config.countDorks && 'dorks', config.countRocks && 'rocks']
     .filter(Boolean)
     .join(' and ');
   return (
     `${config.minSources}+ mana sources (counting mana ${kinds} with mana value ` +
-    `≤${config.maxProducerMV}), ${config.minLands}–${config.maxLands} lands`
+    `≤${config.maxProducerMV}), ${config.minLands}–${config.maxLands} lands${curve}`
   );
 }

@@ -8,7 +8,7 @@ import type { Card, KeepableConfig } from './types';
 const card = (
   name: string,
   typeLine: string,
-  extra: Partial<Pick<Card, 'producedMana' | 'manaValue'>> = {},
+  extra: Partial<Pick<Card, 'producedMana' | 'manaValue' | 'manaCost'>> = {},
 ): Card => ({
   name,
   oracleName: name,
@@ -16,21 +16,28 @@ const card = (
   primaryType: classifyTypeLine(typeLine),
   producedMana: extra.producedMana ?? [],
   manaValue: extra.manaValue ?? null,
+  manaCost: extra.manaCost ?? null,
   colorIdentity: [],
 });
 
 const forest = card('Forest', 'Basic Land — Forest', { producedMana: ['G'], manaValue: 0 });
-const elf = card('Grizzly Bears', 'Creature — Bear', { manaValue: 2 });
+const elf = card('Grizzly Bears', 'Creature — Bear', { manaValue: 2, manaCost: '{1}{G}' });
 const dork = card('Llanowar Elves', 'Creature — Elf Druid', {
   producedMana: ['G'],
   manaValue: 1,
+  manaCost: '{G}',
 });
-const rock = card('Sol Ring', 'Artifact', { producedMana: ['C'], manaValue: 1 });
+const rock = card('Sol Ring', 'Artifact', {
+  producedMana: ['C'],
+  manaValue: 1,
+  manaCost: '{1}',
+});
 const bigDork = card("Karametra's Acolyte", 'Creature — Human Druid', {
   producedMana: ['G'],
   manaValue: 4,
+  manaCost: '{3}{G}',
 });
-const bolt = card('Lightning Bolt', 'Instant', { manaValue: 1 });
+const bolt = card('Lightning Bolt', 'Instant', { manaValue: 1, manaCost: '{R}' });
 
 const landsOnly: KeepableConfig = {
   ...DEFAULT_KEEPABLE,
@@ -148,7 +155,8 @@ describe('summarizeBatch', () => {
 
 describe('describeKeepable', () => {
   it('describes the pure land range', () => {
-    expect(describeKeepable(landsOnly)).toBe('3–4 lands');
+    expect(describeKeepable({ ...landsOnly, requireCurve: false })).toBe('3–4 lands');
+    expect(describeKeepable(landsOnly)).toBe('3–4 lands, with a castable turn 1–3 curve');
   });
 
   it('describes producer counting', () => {

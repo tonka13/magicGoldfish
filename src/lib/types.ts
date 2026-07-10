@@ -22,6 +22,8 @@ export interface Card {
   /** Mana symbols this card can produce (Scryfall produced_mana), e.g. ['G']. */
   producedMana: string[];
   manaValue: number | null;
+  /** Scryfall mana_cost, e.g. "{2}{W}" — null when unknown, '' for lands. */
+  manaCost: string | null;
   colorIdentity: string[];
 }
 
@@ -55,6 +57,12 @@ export interface KeepableConfig {
   minLands: number;
   /** Only count producers with mana value at or below this. */
   maxProducerMV: number;
+  /**
+   * Require a castable turn 1–3 curve: land turns 1 and 2, a spell castable
+   * off those two lands' colors by turn 2, and a turn-3 play (3 mana, or 4
+   * when the turn-2 play was a mana dork/rock).
+   */
+  requireCurve: boolean;
 }
 
 export interface HandAnalysis {
@@ -62,6 +70,10 @@ export interface HandAnalysis {
   /** Lands plus counted mana producers. */
   manaSources: number;
   typeCounts: Record<CardType, number>;
+  /** Quantity checks passed (sources / land range). */
+  manaOk: boolean;
+  /** The hand can make the turn 1–3 curve with its actual colors. */
+  curvesOut: boolean;
   keepable: boolean;
 }
 
@@ -70,6 +82,8 @@ export interface BatchStats {
   avgLands: number;
   avgManaSources: number;
   keepablePct: number;
+  /** % of hands passing the turn 1–3 curve check (computed regardless of toggle). */
+  curveOutPct: number;
   config: KeepableConfig;
   avgTypeCounts: Record<CardType, number>;
   /** Index = number of lands in hand (0..7). */

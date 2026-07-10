@@ -56,6 +56,14 @@ export default function KeepableSettings({
           />
           Count mana rocks
         </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.requireCurve}
+            onChange={(e) => set({ requireCurve: e.target.checked })}
+          />
+          Require castable curve
+        </label>
         {producersCounted(config) && (
           <>
             <label>
@@ -89,6 +97,8 @@ export default function KeepableSettings({
         Keepable = {describeKeepable(config)}.
         {producersCounted(config) &&
           ' Dorks are creatures that produce mana; rocks are artifacts that produce mana (detected from Scryfall data).'}
+        {config.requireCurve &&
+          ' Curve = lands on turns 1–2, a spell castable off those two lands’ colors by turn 2, and a turn-3 play (3 mana — or 4 if the turn-2 play was a dork/rock).'}
       </p>
     </section>
   );

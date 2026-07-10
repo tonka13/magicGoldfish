@@ -39,6 +39,12 @@ cached in localStorage).
   `produced_mana` with a mana-value cap (default ≤3) so late-game producers
   don't count as early ramp. All knobs adjustable and persisted in
   localStorage.
+- **Color-aware curve check** (on by default) — a keepable hand must also be
+  able to *cast* an early curve with its actual colors: lands on turns 1–2, a
+  spell payable off those two lands' produced colors by turn 2 (real pip
+  matching, e.g. `{W}{R}` vs what your lands tap for — hybrid and Phyrexian
+  handled), and a turn-3 play with 3 mana, or 4 when the turn-2 play was a
+  dork/rock. A WR hand holding only white spells with no white source fails.
 - **CSV export** — per-hand card lists and stats plus summary rows, for both
   the batch and the session log.
 

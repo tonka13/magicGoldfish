@@ -39,6 +39,12 @@ export default function StatsPanel({
             <div className="value">{stats.avgManaSources.toFixed(2)}</div>
           </div>
         )}
+        {config.requireCurve && (
+          <div className="tile">
+            <span className="label">Curves out (turns 1–3)</span>
+            <div className="value">{stats.curveOutPct.toFixed(1)}%</div>
+          </div>
+        )}
         <div className="tile">
           <span className="label">Keepable hands</span>
           <div className="value">{stats.keepablePct.toFixed(1)}%</div>
@@ -69,6 +75,7 @@ export default function StatsPanel({
               <th className="num">#</th>
               <th className="num">Lands</th>
               {withProducers && <th className="num">Sources</th>}
+              {config.requireCurve && <th>Curve?</th>}
               {showMulligans && <th className="num">Mulls</th>}
               <th>Keep?</th>
               <th>Cards</th>
@@ -82,8 +89,9 @@ export default function StatsPanel({
                   <td className="num">{i + 1}</td>
                   <td className="num">{a.landCount}</td>
                   {withProducers && <td className="num">{a.manaSources}</td>}
+                  {config.requireCurve && <td>{a.curvesOut ? 'Y' : 'N'}</td>}
                   {showMulligans && <td className="num">{hand.mulligans}</td>}
-                  <td>{a.keepable ? '✓' : '—'}</td>
+                  <td>{a.keepable ? 'Y' : 'N'}</td>
                   <td className="cards-cell">
                     {hand.cards.map((c) => c.name).join(', ')}
                   </td>

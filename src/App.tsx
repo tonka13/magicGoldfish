@@ -49,6 +49,7 @@ function App() {
         primaryType: classifyTypeLine(data?.typeLine ?? null),
         producedMana: data?.producedMana ?? [],
         manaValue: data?.manaValue ?? null,
+        manaCost: data?.manaCost ?? null,
         colorIdentity: data?.colorIdentity ?? [],
       };
     };

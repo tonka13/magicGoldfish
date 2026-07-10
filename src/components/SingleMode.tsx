@@ -138,7 +138,12 @@ export default function SingleMode({
               {analysis.keepable ? (
                 <span className="status-good">keepable by your definition</span>
               ) : (
-                <span className="warning">not keepable by your definition</span>
+                <span className="warning">
+                  not keepable
+                  {analysis.manaOk && config.requireCurve && !analysis.curvesOut
+                    ? " — can't cast a turn 1–3 curve with these colors"
+                    : ' by your definition'}
+                </span>
               )}
               {phase === 'kept' && ' · hand kept and added to the session log'}
             </p>
