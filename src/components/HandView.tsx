@@ -1,6 +1,7 @@
 import type { Card, CardType } from '../lib/types';
 import { CARD_TYPES } from '../lib/types';
 import { emptyTypeCounts } from '../lib/classify';
+import { normalizeName } from '../lib/scryfall';
 
 export const TYPE_COLOR_VAR: Record<CardType, string> = {
   Land: 'var(--t-land)',
@@ -25,9 +26,14 @@ export function CardChip({
 }) {
   const style = { '--type-color': TYPE_COLOR_VAR[card.primaryType] } as React.CSSProperties;
   const className = `card-chip${selected ? ' selected' : ''}`;
+  // Flavor-named prints (e.g. "Aang's Shelter") show their real card.
+  const alias = normalizeName(card.name) !== normalizeName(card.oracleName);
   const body = (
     <>
-      <span className="card-name">{card.name}</span>
+      <span className="card-name">
+        {card.name}
+        {alias && <span className="alias"> = {card.oracleName}</span>}
+      </span>
       <span className="card-type">{card.primaryType}</span>
     </>
   );

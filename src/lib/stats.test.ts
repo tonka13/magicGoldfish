@@ -1,19 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import { classifyTypeLine } from './classify';
-import { analyzeHand, summarizeBatch } from './stats';
+import { describeKeepable, isManaDork, isManaRock } from './mana';
+import { DEFAULT_KEEPABLE, analyzeHand, summarizeBatch } from './stats';
 import { drawBatch, drawHand } from './simulator';
-import type { Card } from './types';
+import type { Card, KeepableConfig } from './types';
 
-const card = (name: string, typeLine: string): Card => ({
+const card = (
+  name: string,
+  typeLine: string,
+  extra: Partial<Pick<Card, 'producedMana' | 'manaValue'>> = {},
+): Card => ({
   name,
+  oracleName: name,
   typeLine,
   primaryType: classifyTypeLine(typeLine),
+  producedMana: extra.producedMana ?? [],
+  manaValue: extra.manaValue ?? null,
+  colorIdentity: [],
 });
 
-const forest = card('Forest', 'Basic Land — Forest');
-const elf = card('Llanowar Elves', 'Creature — Elf Druid');
-const solRing = card('Sol Ring', 'Artifact');
-const bolt = card('Lightning Bolt', 'Instant');
+const forest = card('Forest', 'Basic Land — Forest', { producedMana: ['G'], manaValue: 0 });
+const elf = card('Grizzly Bears', 'Creature — Bear', { manaValue: 2 });
+const dork = card('Llanowar Elves', 'Creature — Elf Druid', {
+  producedMana: ['G'],
+  manaValue: 1,
+});
+const rock = card('Sol Ring', 'Artifact', { producedMana: ['C'], manaValue: 1 });
+const bigDork = card("Karametra's Acolyte", 'Creature — Human Druid', {
+  producedMana: ['G'],
+  manaValue: 4,
+});
+const bolt = card('Lightning Bolt', 'Instant', { manaValue: 1 });
+
+const landsOnly: KeepableConfig = {
+  ...DEFAULT_KEEPABLE,
+  countDorks: false,
+  countRocks: false,
+};
 
 describe('classifyTypeLine', () => {
   it('classifies basic types', () => {
@@ -39,31 +62,77 @@ describe('classifyTypeLine', () => {
   });
 });
 
-describe('analyzeHand', () => {
-  it('counts types and lands', () => {
-    const analysis = analyzeHand([forest, forest, forest, elf, elf, solRing, bolt], 3, 5);
+describe('mana producers', () => {
+  it('detects dorks and rocks by produced mana and type', () => {
+    expect(isManaDork(dork, 3)).toBe(true);
+    expect(isManaDork(elf, 3)).toBe(false);
+    expect(isManaRock(rock, 3)).toBe(true);
+    expect(isManaRock(dork, 3)).toBe(false);
+    // Lands produce mana but are neither dorks nor rocks.
+    expect(isManaDork(forest, 3)).toBe(false);
+    expect(isManaRock(forest, 3)).toBe(false);
+  });
+
+  it('respects the producer mana-value cap', () => {
+    expect(isManaDork(bigDork, 3)).toBe(false);
+    expect(isManaDork(bigDork, 4)).toBe(true);
+  });
+});
+
+describe('analyzeHand (default config: 3+ sources, ≤4 lands, ≥2 lands)', () => {
+  it('counts types, lands, and mana sources', () => {
+    const analysis = analyzeHand([forest, forest, forest, elf, elf, rock, bolt], DEFAULT_KEEPABLE);
     expect(analysis.landCount).toBe(3);
+    expect(analysis.manaSources).toBe(4); // 3 lands + Sol Ring
     expect(analysis.typeCounts.Creature).toBe(2);
     expect(analysis.typeCounts.Artifact).toBe(1);
-    expect(analysis.typeCounts.Instant).toBe(1);
     expect(analysis.keepable).toBe(true);
   });
 
-  it('marks hands outside the land range as not keepable', () => {
-    expect(analyzeHand([forest, elf, elf, elf, elf, elf, elf], 3, 5).keepable).toBe(false);
-    expect(analyzeHand([forest, forest, forest, forest, forest, forest, elf], 3, 5).keepable).toBe(false);
+  it('keeps 2 lands + a dork or rock', () => {
+    expect(analyzeHand([forest, forest, dork, elf, elf, bolt, bolt], DEFAULT_KEEPABLE).keepable).toBe(true);
+    expect(analyzeHand([forest, forest, rock, elf, elf, bolt, bolt], DEFAULT_KEEPABLE).keepable).toBe(true);
+  });
+
+  it('does not keep 2 lands with no producers', () => {
+    expect(analyzeHand([forest, forest, elf, elf, elf, bolt, bolt], DEFAULT_KEEPABLE).keepable).toBe(false);
+  });
+
+  it('does not keep 1 land + 2 dorks (land floor)', () => {
+    expect(analyzeHand([forest, dork, dork, elf, elf, bolt, bolt], DEFAULT_KEEPABLE).keepable).toBe(false);
+  });
+
+  it('does not keep 5 lands (flooded), even with producers', () => {
+    expect(analyzeHand([forest, forest, forest, forest, forest, rock, elf], DEFAULT_KEEPABLE).keepable).toBe(false);
+  });
+
+  it('ignores producers above the mana-value cap', () => {
+    expect(analyzeHand([forest, forest, bigDork, elf, elf, bolt, bolt], DEFAULT_KEEPABLE).keepable).toBe(false);
+  });
+
+  it('honors per-kind toggles', () => {
+    const rocksOnly = { ...DEFAULT_KEEPABLE, countDorks: false };
+    expect(analyzeHand([forest, forest, dork, elf, elf, bolt, bolt], rocksOnly).keepable).toBe(false);
+    expect(analyzeHand([forest, forest, rock, elf, elf, bolt, bolt], rocksOnly).keepable).toBe(true);
+  });
+
+  it('falls back to a pure land range when producers are off', () => {
+    expect(analyzeHand([forest, forest, forest, elf, elf, elf, elf], landsOnly).keepable).toBe(true);
+    expect(analyzeHand([forest, forest, dork, rock, elf, bolt, bolt], landsOnly).keepable).toBe(false);
+    expect(analyzeHand([forest, forest, forest, forest, forest, elf, elf], landsOnly).keepable).toBe(false);
   });
 });
 
 describe('summarizeBatch', () => {
   it('computes averages, keepable %, and distribution', () => {
     const hands = [
-      [forest, forest, forest, elf, elf, solRing, bolt], // 3 lands, keepable
+      [forest, forest, forest, elf, elf, rock, bolt], // 3 lands + rock, keepable
       [forest, elf, elf, elf, elf, elf, elf], // 1 land, not keepable
     ];
-    const stats = summarizeBatch(hands, 3, 5);
+    const stats = summarizeBatch(hands, DEFAULT_KEEPABLE);
     expect(stats.handCount).toBe(2);
     expect(stats.avgLands).toBe(2);
+    expect(stats.avgManaSources).toBe(2.5);
     expect(stats.keepablePct).toBe(50);
     expect(stats.landDistribution[3]).toBe(1);
     expect(stats.landDistribution[1]).toBe(1);
@@ -71,9 +140,21 @@ describe('summarizeBatch', () => {
   });
 
   it('handles an empty batch without NaN', () => {
-    const stats = summarizeBatch([], 3, 5);
+    const stats = summarizeBatch([], DEFAULT_KEEPABLE);
     expect(stats.avgLands).toBe(0);
     expect(stats.keepablePct).toBe(0);
+  });
+});
+
+describe('describeKeepable', () => {
+  it('describes the pure land range', () => {
+    expect(describeKeepable(landsOnly)).toBe('3–4 lands');
+  });
+
+  it('describes producer counting', () => {
+    expect(describeKeepable(DEFAULT_KEEPABLE)).toContain('dorks and rocks');
+    expect(describeKeepable(DEFAULT_KEEPABLE)).toContain('≤3');
+    expect(describeKeepable(DEFAULT_KEEPABLE)).toContain('2–4 lands');
   });
 });
 
@@ -94,7 +175,7 @@ describe('simulator', () => {
 
   it('batch averages converge on the hypergeometric expectation', () => {
     const hands = drawBatch(library, 2000);
-    const stats = summarizeBatch(hands, 3, 5);
+    const stats = summarizeBatch(hands, DEFAULT_KEEPABLE);
     const expected = 7 * (40 / 99); // ≈ 2.83
     expect(stats.avgLands).toBeGreaterThan(expected - 0.15);
     expect(stats.avgLands).toBeLessThan(expected + 0.15);

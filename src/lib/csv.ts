@@ -1,6 +1,7 @@
+import { describeKeepable, producersCounted } from './mana';
 import { analyzeHand, summarizeBatch } from './stats';
 import { CARD_TYPES } from './types';
-import type { Card, DrawnHand } from './types';
+import type { Card, DrawnHand, KeepableConfig } from './types';
 
 function csvField(value: string | number): string {
   const s = String(value);
@@ -17,21 +18,17 @@ function activeTypes(hands: Card[][]) {
   return CARD_TYPES.filter((t) => t !== 'Unknown' || anyUnknown);
 }
 
-export function handsToCsv(
-  hands: DrawnHand[],
-  keepableMin: number,
-  keepableMax: number,
-): string {
+export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
   const cardLists = hands.map((h) => h.cards);
   const types = activeTypes(cardLists);
   const lines: string[] = [];
 
   lines.push(
-    row('Hand #', 'Cards', 'Mulligans', ...types, 'Lands', `Keepable (${keepableMin}-${keepableMax} lands)`),
+    row('Hand #', 'Cards', 'Mulligans', ...types, 'Lands', 'Mana sources', 'Keepable'),
   );
 
   hands.forEach((hand, i) => {
-    const analysis = analyzeHand(hand.cards, keepableMin, keepableMax);
+    const analysis = analyzeHand(hand.cards, config);
     lines.push(
       row(
         i + 1,
@@ -39,19 +36,22 @@ export function handsToCsv(
         hand.mulligans,
         ...types.map((t) => analysis.typeCounts[t]),
         analysis.landCount,
+        analysis.manaSources,
         analysis.keepable ? 'Y' : 'N',
       ),
     );
   });
 
-  const stats = summarizeBatch(cardLists, keepableMin, keepableMax);
+  const stats = summarizeBatch(cardLists, config);
   lines.push('');
-  lines.push(row('Summary', '', '', ...types.map(() => ''), '', ''));
+  lines.push(row('Summary'));
+  lines.push(row('Keepable definition', describeKeepable(config)));
   lines.push(row('Hands drawn', stats.handCount));
   lines.push(row('Average lands per hand', stats.avgLands.toFixed(2)));
-  lines.push(
-    row(`Keepable hands (${keepableMin}-${keepableMax} lands)`, `${stats.keepablePct.toFixed(1)}%`),
-  );
+  if (producersCounted(config)) {
+    lines.push(row('Average mana sources per hand', stats.avgManaSources.toFixed(2)));
+  }
+  lines.push(row('Keepable hands', `${stats.keepablePct.toFixed(1)}%`));
   for (const type of types) {
     lines.push(row(`Average ${type}s per hand`, stats.avgTypeCounts[type].toFixed(2)));
   }

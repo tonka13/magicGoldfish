@@ -24,12 +24,21 @@ cached in localStorage).
   names, set codes / collector numbers / foil markers, blank lines, comments,
   and section headers. Commander via `Commander:` prefix, `*CMDR*` tag, a
   `Commander` section, or a picker if unmarked.
+- **Universes Beyond flavor names** — pasting a UB alias (e.g. "Aang's
+  Shelter") resolves to the real card (Teferi's Protection) via Scryfall's
+  `/cards/named` fallback, and the hand display shows the equivalence.
 - **Single hands** — draw from the 99, London mulligan (fresh 7 each time,
   bottom N on keep), optional free-first-mulligan house rule. Kept hands
   accumulate in a session log.
-- **Batch test** — draw N hands at once; average lands, keepable-% (land range
-  configurable, default 3–5), average type breakdown, land-count histogram,
-  and a per-hand table.
+- **Batch test** — draw N hands at once; average lands, average mana sources,
+  keepable-%, average type breakdown, land-count histogram, and a per-hand
+  table.
+- **Configurable keepable definition** — default: 3+ mana sources, 2–4 lands.
+  Mana dorks (creatures that produce mana) and mana rocks (artifacts that
+  produce mana) can count as sources, detected from Scryfall's
+  `produced_mana` with a mana-value cap (default ≤3) so late-game producers
+  don't count as early ramp. All knobs adjustable and persisted in
+  localStorage.
 - **CSV export** — per-hand card lists and stats plus summary rows, for both
   the batch and the session log.
 

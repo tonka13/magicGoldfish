@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { downloadCsv, handsToCsv } from '../lib/csv';
 import { drawBatch } from '../lib/simulator';
-import type { Card, DrawnHand } from '../lib/types';
+import type { Card, DrawnHand, KeepableConfig } from '../lib/types';
 import StatsPanel from './StatsPanel';
 
 export default function BatchMode({
   library,
-  keepableMin,
-  keepableMax,
+  config,
 }: {
   library: Card[];
-  keepableMin: number;
-  keepableMax: number;
+  config: KeepableConfig;
 }) {
   const [count, setCount] = useState(100);
   const [hands, setHands] = useState<DrawnHand[]>([]);
@@ -24,7 +22,7 @@ export default function BatchMode({
 
   function exportCsv() {
     const stamp = new Date().toISOString().slice(0, 10);
-    downloadCsv(handsToCsv(hands, keepableMin, keepableMax), `goldfish-batch-${stamp}.csv`);
+    downloadCsv(handsToCsv(hands, config), `goldfish-batch-${stamp}.csv`);
   }
 
   return (
@@ -59,7 +57,7 @@ export default function BatchMode({
           consistency.
         </p>
       ) : (
-        <StatsPanel hands={hands} keepableMin={keepableMin} keepableMax={keepableMax} />
+        <StatsPanel hands={hands} config={config} />
       )}
     </section>
   );

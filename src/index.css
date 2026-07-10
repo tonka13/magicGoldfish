@@ -231,6 +231,11 @@ button.card-chip {
   cursor: pointer;
 }
 
+.card-chip .alias {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+}
+
 .card-chip .card-type {
   margin-left: auto;
   color: var(--ink-muted);

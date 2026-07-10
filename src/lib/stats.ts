@@ -1,35 +1,52 @@
 import { emptyTypeCounts } from './classify';
-import type { BatchStats, Card, CardType, HandAnalysis } from './types';
+import { countManaSources, producersCounted } from './mana';
+import type { BatchStats, Card, CardType, HandAnalysis, KeepableConfig } from './types';
 
-export function analyzeHand(
-  cards: Card[],
-  keepableMin: number,
-  keepableMax: number,
-): HandAnalysis {
+export const DEFAULT_KEEPABLE: KeepableConfig = {
+  minSources: 3,
+  maxLands: 4,
+  countDorks: true,
+  countRocks: true,
+  minLands: 2,
+  maxProducerMV: 3,
+};
+
+/**
+ * A hand is keepable when it has enough mana sources to develop, isn't
+ * flooded, and — if dorks/rocks are doing some of the work — still has a
+ * floor of actual lands to cast them off.
+ */
+export function analyzeHand(cards: Card[], config: KeepableConfig): HandAnalysis {
   const typeCounts = emptyTypeCounts();
   for (const card of cards) typeCounts[card.primaryType]++;
-  const landCount = typeCounts.Land;
+
+  const sources = countManaSources(cards, config);
+  const landFloor = producersCounted(config) ? config.minLands : config.minSources;
+  const keepable =
+    sources.total >= config.minSources &&
+    sources.lands <= config.maxLands &&
+    sources.lands >= landFloor;
+
   return {
-    landCount,
+    landCount: sources.lands,
+    manaSources: sources.total,
     typeCounts,
-    keepable: landCount >= keepableMin && landCount <= keepableMax,
+    keepable,
   };
 }
 
-export function summarizeBatch(
-  hands: Card[][],
-  keepableMin: number,
-  keepableMax: number,
-): BatchStats {
+export function summarizeBatch(hands: Card[][], config: KeepableConfig): BatchStats {
   const handCount = hands.length;
   const totals = emptyTypeCounts();
   const landDistribution = new Array(8).fill(0);
   let keepable = 0;
   let totalLands = 0;
+  let totalSources = 0;
 
   for (const hand of hands) {
-    const analysis = analyzeHand(hand, keepableMin, keepableMax);
+    const analysis = analyzeHand(hand, config);
     totalLands += analysis.landCount;
+    totalSources += analysis.manaSources;
     landDistribution[Math.min(analysis.landCount, 7)]++;
     if (analysis.keepable) keepable++;
     for (const type of Object.keys(totals) as CardType[]) {
@@ -45,9 +62,9 @@ export function summarizeBatch(
   return {
     handCount,
     avgLands: handCount ? totalLands / handCount : 0,
+    avgManaSources: handCount ? totalSources / handCount : 0,
     keepablePct: handCount ? (keepable / handCount) * 100 : 0,
-    keepableMin,
-    keepableMax,
+    config,
     avgTypeCounts,
     landDistribution,
   };

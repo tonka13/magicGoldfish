@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { parseDecklist } from '../lib/parser';
-import { resolveTypeLines } from '../lib/scryfall';
+import { resolveCards, type CardData } from '../lib/scryfall';
 import { SAMPLE_DECK } from '../lib/sampleDeck';
 import type { ParsedDeck } from '../lib/types';
 
 export interface LoadedDeck {
   parsed: ParsedDeck;
-  typeLines: Map<string, string>;
+  cards: Map<string, CardData>;
   notFound: string[];
 }
 
@@ -35,10 +35,10 @@ export default function DeckInput({
     try {
       const names = [...parsed.library];
       if (parsed.commander) names.push(parsed.commander);
-      const { typeLines, notFound } = await resolveTypeLines(names, (done, total) =>
+      const { cards, notFound } = await resolveCards(names, (done, total) =>
         setProgress(`Looking up card types… ${done}/${total}`),
       );
-      onLoaded({ parsed, typeLines, notFound });
+      onLoaded({ parsed, cards, notFound });
       setOpen(false);
     } catch (err) {
       setError(

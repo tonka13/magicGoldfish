@@ -4,21 +4,20 @@ import {
   drawHand,
   effectiveMulligans,
 } from '../lib/simulator';
+import { producersCounted } from '../lib/mana';
 import { analyzeHand } from '../lib/stats';
-import type { Card, DrawnHand } from '../lib/types';
+import type { Card, DrawnHand, KeepableConfig } from '../lib/types';
 import HandView from './HandView';
 
 type Phase = 'idle' | 'deciding' | 'bottoming' | 'kept';
 
 export default function SingleMode({
   library,
-  keepableMin,
-  keepableMax,
+  config,
   onKeep,
 }: {
   library: Card[];
-  keepableMin: number;
-  keepableMax: number;
+  config: KeepableConfig;
   onKeep: (hand: DrawnHand) => void;
 }) {
   const [phase, setPhase] = useState<Phase>('idle');
@@ -67,9 +66,8 @@ export default function SingleMode({
     });
   }
 
-  const analysis = hand.length
-    ? analyzeHand(hand, keepableMin, keepableMax)
-    : null;
+  const analysis = hand.length ? analyzeHand(hand, config) : null;
+  const withProducers = producersCounted(config);
 
   return (
     <section className="panel">
@@ -132,15 +130,15 @@ export default function SingleMode({
           />
           {analysis && phase !== 'bottoming' && (
             <p className="small">
-              {analysis.landCount} land{analysis.landCount !== 1 ? 's' : ''} —{' '}
+              {analysis.landCount} land{analysis.landCount !== 1 ? 's' : ''}
+              {withProducers &&
+                analysis.manaSources !== analysis.landCount &&
+                ` + ${analysis.manaSources - analysis.landCount} dork/rock = ${analysis.manaSources} mana sources`}{' '}
+              —{' '}
               {analysis.keepable ? (
-                <span className="status-good">
-                  in your keepable range ({keepableMin}–{keepableMax})
-                </span>
+                <span className="status-good">keepable by your definition</span>
               ) : (
-                <span className="warning">
-                  outside your keepable range ({keepableMin}–{keepableMax})
-                </span>
+                <span className="warning">not keepable by your definition</span>
               )}
               {phase === 'kept' && ' · hand kept and added to the session log'}
             </p>

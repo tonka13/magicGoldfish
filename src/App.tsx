@@ -1,27 +1,56 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import BatchMode from './components/BatchMode';
 import DeckInput, { type LoadedDeck } from './components/DeckInput';
 import { CardChip } from './components/HandView';
+import KeepableSettings from './components/KeepableSettings';
 import SingleMode from './components/SingleMode';
 import StatsPanel from './components/StatsPanel';
 import { classifyTypeLine } from './lib/classify';
 import { downloadCsv, handsToCsv } from './lib/csv';
 import { normalizeName } from './lib/scryfall';
-import type { Card, DrawnHand } from './lib/types';
+import { DEFAULT_KEEPABLE } from './lib/stats';
+import type { Card, DrawnHand, KeepableConfig } from './lib/types';
+
+const KEEPABLE_STORAGE_KEY = 'goldfish-keepable-v1';
+
+function loadKeepable(): KeepableConfig {
+  try {
+    const stored = localStorage.getItem(KEEPABLE_STORAGE_KEY);
+    if (!stored) return DEFAULT_KEEPABLE;
+    return { ...DEFAULT_KEEPABLE, ...JSON.parse(stored) };
+  } catch {
+    return DEFAULT_KEEPABLE;
+  }
+}
 
 function App() {
   const [deck, setDeck] = useState<LoadedDeck | null>(null);
   const [commanderName, setCommanderName] = useState<string | null>(null);
   const [mode, setMode] = useState<'single' | 'batch'>('single');
-  const [keepableMin, setKeepableMin] = useState(3);
-  const [keepableMax, setKeepableMax] = useState(5);
+  const [keepable, setKeepable] = useState<KeepableConfig>(loadKeepable);
   const [session, setSession] = useState<DrawnHand[]>([]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(KEEPABLE_STORAGE_KEY, JSON.stringify(keepable));
+    } catch {
+      // Not persisted — settings still work for this session.
+    }
+  }, [keepable]);
+
   const toCard = useMemo(() => {
-    const typeLines = deck?.typeLines;
+    const cardData = deck?.cards;
     return (name: string): Card => {
-      const typeLine = typeLines?.get(normalizeName(name)) ?? null;
-      return { name, typeLine, primaryType: classifyTypeLine(typeLine) };
+      const data = cardData?.get(normalizeName(name));
+      return {
+        name,
+        oracleName: data?.oracleName || name,
+        typeLine: data?.typeLine ?? null,
+        primaryType: classifyTypeLine(data?.typeLine ?? null),
+        producedMana: data?.producedMana ?? [],
+        manaValue: data?.manaValue ?? null,
+        colorIdentity: data?.colorIdentity ?? [],
+      };
     };
   }, [deck]);
 
@@ -33,7 +62,7 @@ function App() {
     } else {
       // Best guess: first legendary creature in the list, else first legend.
       const names = [...new Set(loaded.parsed.library)];
-      const typeOf = (n: string) => loaded.typeLines.get(normalizeName(n)) ?? '';
+      const typeOf = (n: string) => loaded.cards.get(normalizeName(n))?.typeLine ?? '';
       const guess =
         names.find((n) => /Legendary.*Creature/.test(typeOf(n))) ??
         names.find((n) => typeOf(n).includes('Legendary')) ??
@@ -62,7 +91,7 @@ function App() {
 
   function exportSession() {
     const stamp = new Date().toISOString().slice(0, 10);
-    downloadCsv(handsToCsv(session, keepableMin, keepableMax), `goldfish-session-${stamp}.csv`);
+    downloadCsv(handsToCsv(session, keepable), `goldfish-session-${stamp}.csv`);
   }
 
   return (
@@ -130,28 +159,7 @@ function App() {
 
       {deck && library.length >= 7 && (
         <>
-          <div className="settings-row" style={{ marginBottom: 12 }}>
-            <label>
-              Keepable land range:
-              <input
-                type="number"
-                min={0}
-                max={7}
-                value={keepableMin}
-                onChange={(e) => setKeepableMin(Number(e.target.value))}
-                aria-label="Minimum keepable lands"
-              />
-              –
-              <input
-                type="number"
-                min={0}
-                max={7}
-                value={keepableMax}
-                onChange={(e) => setKeepableMax(Number(e.target.value))}
-                aria-label="Maximum keepable lands"
-              />
-            </label>
-          </div>
+          <KeepableSettings config={keepable} onChange={setKeepable} />
 
           <div className="tabs">
             <button
@@ -174,8 +182,7 @@ function App() {
             <>
               <SingleMode
                 library={library}
-                keepableMin={keepableMin}
-                keepableMax={keepableMax}
+                config={keepable}
                 onKeep={(hand) => setSession((s) => [...s, hand])}
               />
               {session.length > 0 && (
@@ -189,21 +196,12 @@ function App() {
                       Clear log
                     </button>
                   </div>
-                  <StatsPanel
-                    hands={session}
-                    keepableMin={keepableMin}
-                    keepableMax={keepableMax}
-                    showMulligans
-                  />
+                  <StatsPanel hands={session} config={keepable} showMulligans />
                 </section>
               )}
             </>
           ) : (
-            <BatchMode
-              library={library}
-              keepableMin={keepableMin}
-              keepableMax={keepableMax}
-            />
+            <BatchMode library={library} config={keepable} />
           )}
         </>
       )}
