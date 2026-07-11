@@ -6,6 +6,7 @@ import SingleMode from './components/SingleMode';
 import StatsPanel from './components/StatsPanel';
 import { classifyTypeLine } from './lib/classify';
 import { downloadCsv, handsToCsv } from './lib/csv';
+import { offColorCards } from './lib/legality';
 import { normalizeName } from './lib/scryfall';
 import { DEFAULT_KEEPABLE } from './lib/stats';
 import { DEFAULT_THEME, deckTheme, pipColor } from './lib/theme';
@@ -31,6 +32,8 @@ function App() {
   const [session, setSession] = useState<DrawnHand[]>([]);
   // Bumped per deck load — keys the mode components so they reset fully.
   const [deckSeq, setDeckSeq] = useState(0);
+  // Off-color warning list expanded (long lists collapse to a summary).
+  const [showOffColor, setShowOffColor] = useState(false);
 
   useEffect(() => {
     try {
@@ -62,6 +65,7 @@ function App() {
     setDeck(loaded);
     setSession([]);
     setDeckSeq((n) => n + 1);
+    setShowOffColor(false);
     if (loaded.parsed.commander) {
       setCommanderName(loaded.parsed.commander);
     } else {
@@ -89,6 +93,11 @@ function App() {
   }, [deck, commanderName, toCard]);
 
   const commander = commanderName ? toCard(commanderName) : null;
+
+  // Color-identity legality: cards in the 99 outside the commander's colors.
+  // Called out as a warning only — testing the deck still works.
+  const offColor =
+    commander && commander.typeLine !== null ? offColorCards(library, commander) : [];
 
   const theme = useMemo(() => {
     if (!deck) return DEFAULT_THEME;
@@ -151,9 +160,12 @@ function App() {
                     <div className="cmd-name muted">No commander marked</div>
                   )}
                   <div className="deck-summary">
-                    {theme.identity.length > 0 && (
-                      <span className="mana-pips" title={theme.identity.join('')}>
-                        {theme.identity.map((c) => (
+                    {commander && commander.colorIdentity.length > 0 && (
+                      <span
+                        className="mana-pips"
+                        title={`Commander color identity: ${commander.colorIdentity.join('')}`}
+                      >
+                        {commander.colorIdentity.map((c) => (
                           <span
                             key={c}
                             className="pip"
@@ -190,6 +202,44 @@ function App() {
                   ⚠ {w}
                 </p>
               ))}
+              {offColor.length > 0 && (
+                <p className="warning small">
+                  ⚠ {offColor.length} card{offColor.length > 1 ? 's' : ''} outside{' '}
+                  {commander!.name}'s color identity (
+                  {commander!.colorIdentity.join('') || 'colorless'})
+                  {offColor.length <= 5 || showOffColor ? (
+                    <>
+                      :{' '}
+                      {offColor
+                        .map((c) => `${c.name} (${c.colorIdentity.join('')})`)
+                        .join(', ')}
+                      {offColor.length > 5 && (
+                        <>
+                          {' '}
+                          <button
+                            type="button"
+                            className="linklike"
+                            onClick={() => setShowOffColor(false)}
+                          >
+                            hide
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      .{' '}
+                      <button
+                        type="button"
+                        className="linklike"
+                        onClick={() => setShowOffColor(true)}
+                      >
+                        Show all {offColor.length}
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
               {deck.notFound.length > 0 && (
                 <p className="warning small">
                   ⚠ Not found on Scryfall (counted as Unknown type):{' '}

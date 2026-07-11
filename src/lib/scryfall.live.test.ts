@@ -29,12 +29,18 @@ describe.skipIf(import.meta.env.MODE !== 'live')('scryfall live', () => {
     expect(typeOf('Cultivate')).toBe('Sorcery');
     expect(typeOf('Beast Within')).toBe('Instant');
     expect(typeOf('Garruk, Primal Hunter')).toBe('Planeswalker');
-    expect(typeOf('Rhythm of the Wild')).toBe('Enchantment');
+    expect(typeOf('Colossal Majesty')).toBe('Enchantment');
     expect(typeOf('Goreclaw, Terror of Qal Sisma')).toBe('Creature');
 
     // Every card in the 99 resolves to a known type.
     const unknown = parsed.library.filter((n) => typeOf(n) === 'Unknown');
     expect(unknown).toEqual([]);
+
+    // The sample deck must stay Commander-legal: mono-green like Goreclaw.
+    const offColor = [...parsed.library, parsed.commander!].filter((n) =>
+      (dataOf(n)?.colorIdentity ?? []).some((c) => c !== 'G'),
+    );
+    expect(offColor).toEqual([]);
 
     // Commander type line marks a legal commander.
     expect(dataOf('Goreclaw, Terror of Qal Sisma')?.typeLine).toMatch(/Legendary Creature/);

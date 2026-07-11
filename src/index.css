@@ -95,6 +95,22 @@ body {
   min-height: 100vh;
 }
 
+/* Full-page background art, heavily faded so the UI stays readable. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('./assets/table-bg.jpg') center / cover no-repeat;
+  opacity: 0.24;
+}
+
+@media (prefers-color-scheme: dark) {
+  body::before {
+    opacity: 0.17;
+  }
+}
+
 /* Full-bleed ambient glow tinted by the deck's accent. */
 .app {
   min-height: 100vh;
@@ -169,7 +185,10 @@ h1 .accent-text {
 /* ---------- Panels ---------- */
 
 section.panel {
-  background: var(--surface-1);
+  /* Slightly translucent + blurred so the background art glows through. */
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px;
@@ -299,6 +318,24 @@ input[type='checkbox'] {
 
 .warning {
   color: var(--critical);
+}
+
+/* Inline text-style button (e.g. show/hide inside a warning line). */
+button.linklike {
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+button.linklike:hover:not(:disabled) {
+  transform: none;
+  color: inherit;
+  border: none;
 }
 
 .status-good {

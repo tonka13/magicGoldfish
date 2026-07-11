@@ -81,7 +81,7 @@ export const SAMPLE_DECK = `Commander: Goreclaw, Terror of Qal Sisma
 1 Skullclamp
 
 // Enchantments (4)
-1 Rhythm of the Wild
+1 Colossal Majesty
 1 Garruk's Uprising
 1 Guardian Project
 1 Elemental Bond
