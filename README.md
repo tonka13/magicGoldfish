@@ -23,13 +23,18 @@ cached in localStorage).
 - **Messy-paste-tolerant parser** — handles `1 Sol Ring`, `1x Sol Ring`, bare
   names, set codes / collector numbers / foil markers, blank lines, comments,
   and section headers. Commander via `Commander:` prefix, `*CMDR*` tag, a
-  `Commander` section, or a picker if unmarked.
+  `Commander` section, or a picker if unmarked. When a line names a specific
+  printing (`1 Sol Ring (C21) 263`) that exact print's image is shown;
+  otherwise Scryfall's default print is used.
+- **Real card images** — hands render actual card scans, dealt with a quick
+  stagger. The app's accent color adapts to the deck's color identity.
 - **Universes Beyond flavor names** — pasting a UB alias (e.g. "Aang's
   Shelter") resolves to the real card (Teferi's Protection) via Scryfall's
   `/cards/named` fallback, and the hand display shows the equivalence.
 - **Single hands** — draw from the 99, London mulligan (fresh 7 each time,
-  bottom N on keep), optional free-first-mulligan house rule. Kept hands
-  accumulate in a session log.
+  bottom N on keep), optional free-first-mulligan house rule, and a "Give up"
+  button for when no amount of mulliganing found a keeper. Keep/give-up
+  decisions accumulate in a session log and drive its CSV Keepable column.
 - **Batch test** — draw N hands at once; average lands, average mana sources,
   keepable-%, average type breakdown, land-count histogram, and a per-hand
   table.

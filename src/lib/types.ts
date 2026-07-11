@@ -25,6 +25,14 @@ export interface Card {
   /** Scryfall mana_cost, e.g. "{2}{W}" — null when unknown, '' for lands. */
   manaCost: string | null;
   colorIdentity: string[];
+  /** Scryfall card image URL — optional, UI-only (analysis never needs it). */
+  imageUrl?: string | null;
+}
+
+/** A specific printing named in a decklist, e.g. "(C21) 263". */
+export interface CardVersion {
+  set: string;
+  collectorNumber?: string;
 }
 
 export interface ParsedDeck {
@@ -35,12 +43,19 @@ export interface ParsedDeck {
   /** Lines that could not be parsed as cards and were skipped. */
   skippedLines: string[];
   warnings: string[];
+  /** Specific printings by normalized name, when the paste named them. */
+  versions: Record<string, CardVersion>;
 }
 
 export interface DrawnHand {
   cards: Card[];
   /** Mulligans taken before this hand was kept (0 for batch hands). */
   mulligans: number;
+  /**
+   * The user's actual keep decision in single-hand mode (true = kept,
+   * false = gave up). Unset for batch hands — the keepable definition rules.
+   */
+  kept?: boolean;
 }
 
 /** User-configurable definition of a keepable opening hand. */

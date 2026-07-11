@@ -25,6 +25,25 @@ describe('parseDecklist', () => {
     expect(deck.library).toEqual(['Sol Ring', 'Arcane Signet', 'Forest']);
   });
 
+  it('captures specific printings so their exact images can be fetched', () => {
+    const deck = parseDecklist(
+      '1 Sol Ring (C21) 263\n1 Arcane Signet (CMR) 297 *F*\n1 Lightning Greaves (SLD)\n1 Forest',
+    );
+    expect(deck.versions['sol ring']).toEqual({ set: 'c21', collectorNumber: '263' });
+    expect(deck.versions['arcane signet']).toEqual({ set: 'cmr', collectorNumber: '297' });
+    expect(deck.versions['lightning greaves']).toEqual({ set: 'sld' });
+    expect(deck.versions['forest']).toBeUndefined();
+  });
+
+  it('captures the commander printing too', () => {
+    const deck = parseDecklist('Commander: Goreclaw, Terror of Qal Sisma (M19) 186\n1 Forest');
+    expect(deck.commander).toBe('Goreclaw, Terror of Qal Sisma');
+    expect(deck.versions['goreclaw, terror of qal sisma']).toEqual({
+      set: 'm19',
+      collectorNumber: '186',
+    });
+  });
+
   it('keeps names containing commas and apostrophes intact', () => {
     const deck = parseDecklist("1 Atraxa, Praetors' Voice\n1 Green Sun's Zenith");
     expect(deck.library).toEqual(["Atraxa, Praetors' Voice", "Green Sun's Zenith"]);

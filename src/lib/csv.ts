@@ -47,7 +47,9 @@ export function handsToCsv(hands: DrawnHand[], config: KeepableConfig): string {
         analysis.landCount,
         analysis.manaSources,
         analysis.curvesOut ? 'Y' : 'N',
-        analysis.keepable ? 'Y' : 'N',
+        // Single-hand sessions record the user's actual keep/give-up call;
+        // batch hands fall back to the configured keepable definition.
+        (hand.kept ?? analysis.keepable) ? 'Y' : 'N',
       ),
     );
   });

@@ -1,4 +1,5 @@
-import type { ParsedDeck } from './types';
+import { normalizeName } from './scryfall';
+import type { CardVersion, ParsedDeck } from './types';
 
 /**
  * Section headers commonly pasted from deck sites (Moxfield, Archidekt,
@@ -13,27 +14,12 @@ const SECTION_HEADER = new RegExp(
   'i',
 );
 
-/**
- * One decklist line: optional quantity ("1", "1x"), card name, then optional
- * trailing set/collector junk: "(C21) 263", "[C21]", "*F*", "#tag", "<foil>".
- */
-const CARD_LINE = /^(?:(\d+)\s*[xX]?\s+)?(.+?)(?:\s+(?:\((?:[A-Za-z0-9]{2,6})\)|\[[^\]]*\])\s*[\w-★]*)?(?:\s+\*[^*]+\*)?(?:\s+#.*)?$/;
-
-/** Strip trailing "(SET) 123 *F*"-style noise from a name candidate. */
-function cleanName(raw: string): string {
-  return raw
-    .replace(/\s+\([A-Za-z0-9]{2,6}\)(\s+[\w-★]+)?\s*$/, '')
-    .replace(/\s+\[[^\]]*\]\s*$/, '')
-    .replace(/\s+\*[^*]*\*\s*$/, '')
-    .replace(/\s+#\S.*$/, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
 interface ParsedLine {
   quantity: number;
   name: string;
   isCommander: boolean;
+  /** Specific printing when the line carried "(SET) 123". */
+  version?: CardVersion;
 }
 
 function parseLine(line: string, inCommanderSection: boolean): ParsedLine | null {
@@ -56,22 +42,48 @@ function parseLine(line: string, inCommanderSection: boolean): ParsedLine | null
     isCommander = true;
   }
 
-  const match = text.match(CARD_LINE);
-  if (!match) return null;
+  // Leading quantity: "1 ", "1x ", "3X ".
+  let quantity = 1;
+  const qty = text.match(/^(\d+)\s*[xX]?\s+(.+)$/);
+  if (qty) {
+    quantity = parseInt(qty[1], 10);
+    text = qty[2];
+  }
 
-  const quantity = match[1] ? parseInt(match[1], 10) : 1;
-  const name = cleanName(match[2]);
+  // Peel trailing junk — "#tags", "*F*" foil markers, "[Ramp]" categories —
+  // repeatedly, since exports stack them after the set/collector number.
+  let prev;
+  do {
+    prev = text;
+    text = text
+      .replace(/\s+#\S.*$/, '')
+      .replace(/\s+\*[^*]*\*\s*$/, '')
+      .replace(/\s+\[[^\]]*\]\s*$/, '')
+      .trim();
+  } while (text !== prev);
+
+  // "(SET) 123" — capture the specific printing rather than discarding it,
+  // so the app can show the exact card version the list named.
+  let version: CardVersion | undefined;
+  const ver = text.match(/^(.+?)\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w★†-]+))?$/);
+  if (ver) {
+    text = ver[1].trim();
+    version = { set: ver[2].toLowerCase(), collectorNumber: ver[3] };
+  }
+
+  const name = text.replace(/\s{2,}/g, ' ').trim();
   if (!name || quantity < 1) return null;
   // A "name" that is purely digits/punctuation is junk, not a card.
   if (!/[A-Za-z]/.test(name)) return null;
 
-  return { quantity, name, isCommander };
+  return { quantity, name, isCommander, version };
 }
 
 export function parseDecklist(text: string): ParsedDeck {
   const library: string[] = [];
   const skippedLines: string[] = [];
   const warnings: string[] = [];
+  const versions: Record<string, CardVersion> = {};
   let commander: string | null = null;
   let inCommanderSection = false;
 
@@ -94,6 +106,11 @@ export function parseDecklist(text: string): ParsedDeck {
       continue;
     }
 
+    if (parsed.version) {
+      const key = normalizeName(parsed.name);
+      if (!versions[key]) versions[key] = parsed.version;
+    }
+
     if (parsed.isCommander && !commander) {
       commander = parsed.name;
       if (parsed.quantity > 1) {
@@ -113,5 +130,5 @@ export function parseDecklist(text: string): ParsedDeck {
     warnings.push(`Deck is ${library.length} cards (expected 100 with commander).`);
   }
 
-  return { commander, library, skippedLines, warnings };
+  return { commander, library, skippedLines, warnings, versions };
 }

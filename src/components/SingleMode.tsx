@@ -9,7 +9,7 @@ import { analyzeHand } from '../lib/stats';
 import type { Card, DrawnHand, KeepableConfig } from '../lib/types';
 import HandView from './HandView';
 
-type Phase = 'idle' | 'deciding' | 'bottoming' | 'kept';
+type Phase = 'idle' | 'deciding' | 'bottoming' | 'kept' | 'gaveup';
 
 export default function SingleMode({
   library,
@@ -25,6 +25,8 @@ export default function SingleMode({
   const [mulligans, setMulligans] = useState(0);
   const [freeFirst, setFreeFirst] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Bumped on every fresh 7 so the deal-in animation replays.
+  const [dealSeq, setDealSeq] = useState(0);
 
   const toBottom = effectiveMulligans(mulligans, freeFirst);
 
@@ -32,6 +34,7 @@ export default function SingleMode({
     setHand(drawHand(library));
     setMulligans(0);
     setSelected(new Set());
+    setDealSeq((n) => n + 1);
     setPhase('deciding');
   }
 
@@ -39,6 +42,7 @@ export default function SingleMode({
     setHand(drawHand(library));
     setMulligans((m) => m + 1);
     setSelected(new Set());
+    setDealSeq((n) => n + 1);
     setPhase('deciding');
   }
 
@@ -54,7 +58,14 @@ export default function SingleMode({
   function finish(kept: Card[]) {
     setHand(kept);
     setPhase('kept');
-    onKeep({ cards: kept, mulligans });
+    onKeep({ cards: kept, mulligans, kept: true });
+  }
+
+  // Mulliganed into the ground and nothing was worth keeping — log the last
+  // hand as a "no" so the session CSV records the failed keep decision.
+  function giveUp() {
+    setPhase('gaveup');
+    onKeep({ cards: hand, mulligans, kept: false });
   }
 
   function toggleCard(index: number) {
@@ -95,6 +106,13 @@ export default function SingleMode({
             <button type="button" onClick={keep}>
               Keep
             </button>
+            <button
+              type="button"
+              onClick={giveUp}
+              title="Nothing worth keeping after mulligans — log this hand as not kept"
+            >
+              Give up
+            </button>
           </>
         )}
         {mulligans > 0 && phase !== 'idle' && (
@@ -125,6 +143,7 @@ export default function SingleMode({
         <>
           <HandView
             cards={hand}
+            dealKey={dealSeq}
             selectedIndices={phase === 'bottoming' ? selected : undefined}
             onToggleCard={phase === 'bottoming' ? toggleCard : undefined}
           />
@@ -146,14 +165,16 @@ export default function SingleMode({
                 </span>
               )}
               {phase === 'kept' && ' · hand kept and added to the session log'}
+              {phase === 'gaveup' && ' · gave up — logged as not kept'}
             </p>
           )}
         </>
       )}
       {phase === 'idle' && (
         <p className="muted small">
-          Draw a hand, then keep it or take London mulligans. Kept hands are
-          recorded in the session log below for CSV export.
+          Draw a hand, then keep it or take London mulligans — or give up if
+          nothing is worth keeping. Decisions are recorded in the session log
+          below for CSV export.
         </p>
       )}
     </section>

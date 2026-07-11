@@ -45,7 +45,7 @@ export default function StatsPanel({
             <div className="value">{stats.curveOutPct.toFixed(1)}%</div>
           </div>
         )}
-        <div className="tile">
+        <div className="tile hero">
           <span className="label">Keepable hands</span>
           <div className="value">{stats.keepablePct.toFixed(1)}%</div>
         </div>
@@ -84,14 +84,25 @@ export default function StatsPanel({
           <tbody>
             {hands.map((hand, i) => {
               const a = analyzeHand(hand.cards, config);
+              const kept = hand.kept ?? a.keepable;
               return (
                 <tr key={i}>
                   <td className="num">{i + 1}</td>
                   <td className="num">{a.landCount}</td>
                   {withProducers && <td className="num">{a.manaSources}</td>}
-                  {config.requireCurve && <td>{a.curvesOut ? 'Y' : 'N'}</td>}
+                  {config.requireCurve && (
+                    <td>
+                      <span className={a.curvesOut ? 'yn y' : 'yn n'}>
+                        {a.curvesOut ? 'Y' : 'N'}
+                      </span>
+                    </td>
+                  )}
                   {showMulligans && <td className="num">{hand.mulligans}</td>}
-                  <td>{a.keepable ? 'Y' : 'N'}</td>
+                  <td>
+                    <span className={kept ? 'yn y' : 'yn n'}>
+                      {kept ? 'Y' : 'N'}
+                    </span>
+                  </td>
                   <td className="cards-cell">
                     {hand.cards.map((c) => c.name).join(', ')}
                   </td>

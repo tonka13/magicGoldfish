@@ -39,6 +39,9 @@ describe.skipIf(import.meta.env.MODE !== 'live')('scryfall live', () => {
     // Commander type line marks a legal commander.
     expect(dataOf('Goreclaw, Terror of Qal Sisma')?.typeLine).toMatch(/Legendary Creature/);
 
+    // Card images come through for the hand display.
+    expect(dataOf('Sol Ring')?.imageUrl).toContain('scryfall');
+
     // Mana costs come through for the curve check.
     expect(dataOf('Cultivate')?.manaCost).toBe('{2}{G}');
     expect(dataOf('Sol Ring')?.manaCost).toBe('{1}');
@@ -88,6 +91,29 @@ describe.skipIf(import.meta.env.MODE !== 'live')('scryfall live', () => {
     expect(stats.curveOutPct).toBeGreaterThan(40);
     expect(stats.keepablePct).toBeGreaterThan(20);
     expect(stats.keepablePct).toBeLessThan(95);
+  });
+
+  it('fetches the exact printing when the list names one', { timeout: 15000 }, async () => {
+    const byDefault = await resolveCards(['Sol Ring']);
+    const byPrint = await resolveCards(['Sol Ring'], undefined, {
+      'sol ring': { set: 'c21', collectorNumber: '263' },
+    });
+    const def = byDefault.cards.get('sol ring');
+    const print = byPrint.cards.get('sol ring');
+    expect(byPrint.notFound).toEqual([]);
+    expect(print?.oracleName).toBe('Sol Ring');
+    expect(print?.manaCost).toBe('{1}');
+    expect(print?.imageUrl).toContain('scryfall');
+    // The C21 print's scan, not the default one.
+    expect(print?.imageUrl).not.toBe(def?.imageUrl);
+  });
+
+  it('falls back to the default print for a bad set/collector number', { timeout: 15000 }, async () => {
+    const { cards, notFound } = await resolveCards(['Sol Ring'], undefined, {
+      'sol ring': { set: 'zzz', collectorNumber: '999' },
+    });
+    expect(notFound).toEqual([]);
+    expect(cards.get('sol ring')?.oracleName).toBe('Sol Ring');
   });
 
   it('resolves Universes Beyond flavor names to the real card', { timeout: 15000 }, async () => {

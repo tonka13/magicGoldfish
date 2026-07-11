@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import BatchMode from './components/BatchMode';
 import DeckInput, { type LoadedDeck } from './components/DeckInput';
-import { CardChip } from './components/HandView';
 import KeepableSettings from './components/KeepableSettings';
 import SingleMode from './components/SingleMode';
 import StatsPanel from './components/StatsPanel';
@@ -9,6 +8,7 @@ import { classifyTypeLine } from './lib/classify';
 import { downloadCsv, handsToCsv } from './lib/csv';
 import { normalizeName } from './lib/scryfall';
 import { DEFAULT_KEEPABLE } from './lib/stats';
+import { DEFAULT_THEME, deckTheme, pipColor } from './lib/theme';
 import type { Card, DrawnHand, KeepableConfig } from './lib/types';
 
 const KEEPABLE_STORAGE_KEY = 'goldfish-keepable-v1';
@@ -29,6 +29,8 @@ function App() {
   const [mode, setMode] = useState<'single' | 'batch'>('single');
   const [keepable, setKeepable] = useState<KeepableConfig>(loadKeepable);
   const [session, setSession] = useState<DrawnHand[]>([]);
+  // Bumped per deck load — keys the mode components so they reset fully.
+  const [deckSeq, setDeckSeq] = useState(0);
 
   useEffect(() => {
     try {
@@ -51,6 +53,7 @@ function App() {
         manaValue: data?.manaValue ?? null,
         manaCost: data?.manaCost ?? null,
         colorIdentity: data?.colorIdentity ?? [],
+        imageUrl: data?.imageUrl ?? null,
       };
     };
   }, [deck]);
@@ -58,6 +61,7 @@ function App() {
   function handleLoaded(loaded: LoadedDeck) {
     setDeck(loaded);
     setSession([]);
+    setDeckSeq((n) => n + 1);
     if (loaded.parsed.commander) {
       setCommanderName(loaded.parsed.commander);
     } else {
@@ -84,6 +88,22 @@ function App() {
     return names.map(toCard);
   }, [deck, commanderName, toCard]);
 
+  const commander = commanderName ? toCard(commanderName) : null;
+
+  const theme = useMemo(() => {
+    if (!deck) return DEFAULT_THEME;
+    return deckTheme(commander ? [...library, commander] : library);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deck, library, commanderName]);
+
+  const themeStyle = {
+    '--accent-l': theme.accentLight,
+    '--accent-d': theme.accentDark,
+    '--accent-soft-l': theme.softLight,
+    '--accent-soft-d': theme.softDark,
+    '--identity-gradient': theme.gradient,
+  } as React.CSSProperties;
+
   const commanderPickable = deck !== null && !deck.parsed.commander;
   const uniqueNames = useMemo(
     () => (deck ? [...new Set(deck.parsed.library)] : []),
@@ -96,117 +116,152 @@ function App() {
   }
 
   return (
-    <>
-      <h1>Commander Goldfish</h1>
-      <p className="tagline">
-        Paste your deck, draw opening hands, and see how consistent it really is.
-      </p>
+    <div className="app" style={themeStyle}>
+      <div className="shell">
+        <header className="app-header">
+          <h1>
+            Commander <span className="accent-text">Goldfish</span>
+          </h1>
+          <p className="tagline">
+            Paste your deck, draw opening hands, and see how consistent it really is.
+          </p>
+        </header>
+        <div className="gradient-rule" aria-hidden />
 
-      <section className="panel">
-        <h2>Deck</h2>
-        <DeckInput onLoaded={handleLoaded} hasDeck={deck !== null} />
-        {deck && (
-          <>
-            <div className="deck-summary" style={{ marginTop: 12 }}>
-              {commanderName && (
-                <>
-                  <span className="muted small">Command zone:</span>
-                  <CardChip card={toCard(commanderName)} />
-                </>
-              )}
-              <span className="chip">{library.length} cards in library</span>
-            </div>
-            {commanderPickable && (
-              <div className="btn-row">
-                <label className="small muted" htmlFor="commander-select">
-                  Commander (not marked in the paste — pick it):
-                </label>
-                <select
-                  id="commander-select"
-                  value={commanderName ?? ''}
-                  onChange={(e) => setCommanderName(e.target.value || null)}
-                >
-                  <option value="">— none / test all 100 —</option>
-                  {uniqueNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {deck.parsed.warnings.map((w) => (
-              <p key={w} className="warning small">
-                ⚠ {w}
-              </p>
-            ))}
-            {deck.notFound.length > 0 && (
-              <p className="warning small">
-                ⚠ Not found on Scryfall (counted as Unknown type):{' '}
-                {deck.notFound.join(', ')}
-              </p>
-            )}
-            {deck.parsed.skippedLines.length > 0 && (
-              <p className="muted small">
-                Skipped {deck.parsed.skippedLines.length} unparseable line
-                {deck.parsed.skippedLines.length > 1 ? 's' : ''}:{' '}
-                {deck.parsed.skippedLines.slice(0, 5).join(' · ')}
-                {deck.parsed.skippedLines.length > 5 && ' · …'}
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      {deck && library.length >= 7 && (
-        <>
-          <KeepableSettings config={keepable} onChange={setKeepable} />
-
-          <div className="tabs">
-            <button
-              type="button"
-              className={mode === 'single' ? 'active' : ''}
-              onClick={() => setMode('single')}
-            >
-              Single hands
-            </button>
-            <button
-              type="button"
-              className={mode === 'batch' ? 'active' : ''}
-              onClick={() => setMode('batch')}
-            >
-              Batch test
-            </button>
-          </div>
-
-          {mode === 'single' ? (
+        <section className="panel">
+          <h2>Deck</h2>
+          <DeckInput onLoaded={handleLoaded} hasDeck={deck !== null} />
+          {deck && (
             <>
-              <SingleMode
-                library={library}
-                config={keepable}
-                onKeep={(hand) => setSession((s) => [...s, hand])}
-              />
-              {session.length > 0 && (
-                <section className="panel">
-                  <h2>Session log — kept hands</h2>
-                  <div className="btn-row" style={{ marginTop: 0 }}>
-                    <button type="button" onClick={exportSession}>
-                      Export CSV
-                    </button>
-                    <button type="button" onClick={() => setSession([])}>
-                      Clear log
-                    </button>
+              <div className="cmd-zone">
+                {commander?.imageUrl && (
+                  <img
+                    className="cmd-img"
+                    src={commander.imageUrl}
+                    alt={commander.name}
+                  />
+                )}
+                <div>
+                  {commander ? (
+                    <>
+                      <span className="cmd-label">Command zone</span>
+                      <div className="cmd-name">{commander.name}</div>
+                    </>
+                  ) : (
+                    <div className="cmd-name muted">No commander marked</div>
+                  )}
+                  <div className="deck-summary">
+                    {theme.identity.length > 0 && (
+                      <span className="mana-pips" title={theme.identity.join('')}>
+                        {theme.identity.map((c) => (
+                          <span
+                            key={c}
+                            className="pip"
+                            style={{ background: pipColor(c) }}
+                          />
+                        ))}
+                      </span>
+                    )}
+                    <span className="chip">{library.length} cards in library</span>
                   </div>
-                  <StatsPanel hands={session} config={keepable} showMulligans />
-                </section>
+                </div>
+              </div>
+              {commanderPickable && (
+                <div className="btn-row">
+                  <label className="small muted" htmlFor="commander-select">
+                    Commander (not marked in the paste — pick it):
+                  </label>
+                  <select
+                    id="commander-select"
+                    value={commanderName ?? ''}
+                    onChange={(e) => setCommanderName(e.target.value || null)}
+                  >
+                    <option value="">— none / test all 100 —</option>
+                    {uniqueNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {deck.parsed.warnings.map((w) => (
+                <p key={w} className="warning small">
+                  ⚠ {w}
+                </p>
+              ))}
+              {deck.notFound.length > 0 && (
+                <p className="warning small">
+                  ⚠ Not found on Scryfall (counted as Unknown type):{' '}
+                  {deck.notFound.join(', ')}
+                </p>
+              )}
+              {deck.parsed.skippedLines.length > 0 && (
+                <p className="muted small">
+                  Skipped {deck.parsed.skippedLines.length} unparseable line
+                  {deck.parsed.skippedLines.length > 1 ? 's' : ''}:{' '}
+                  {deck.parsed.skippedLines.slice(0, 5).join(' · ')}
+                  {deck.parsed.skippedLines.length > 5 && ' · …'}
+                </p>
               )}
             </>
-          ) : (
-            <BatchMode library={library} config={keepable} />
           )}
-        </>
-      )}
-    </>
+        </section>
+
+        {deck && library.length >= 7 && (
+          <div className="app-main">
+            <aside className="sidebar">
+              <KeepableSettings config={keepable} onChange={setKeepable} />
+            </aside>
+            <div className="content">
+              <div className="tabs">
+                <button
+                  type="button"
+                  className={mode === 'single' ? 'active' : ''}
+                  onClick={() => setMode('single')}
+                >
+                  Single hands
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'batch' ? 'active' : ''}
+                  onClick={() => setMode('batch')}
+                >
+                  Batch test
+                </button>
+              </div>
+
+              {mode === 'single' ? (
+                <>
+                  <SingleMode
+                    key={deckSeq}
+                    library={library}
+                    config={keepable}
+                    onKeep={(hand) => setSession((s) => [...s, hand])}
+                  />
+                  {session.length > 0 && (
+                    <section className="panel">
+                      <h2>Session log</h2>
+                      <div className="btn-row" style={{ marginTop: 0 }}>
+                        <button type="button" onClick={exportSession}>
+                          Export CSV
+                        </button>
+                        <button type="button" onClick={() => setSession([])}>
+                          Clear log
+                        </button>
+                      </div>
+                      <StatsPanel hands={session} config={keepable} showMulligans />
+                    </section>
+                  )}
+                </>
+              ) : (
+                <BatchMode key={deckSeq} library={library} config={keepable} />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

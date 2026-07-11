@@ -35,8 +35,10 @@ export default function DeckInput({
     try {
       const names = [...parsed.library];
       if (parsed.commander) names.push(parsed.commander);
-      const { cards, notFound } = await resolveCards(names, (done, total) =>
-        setProgress(`Looking up card types… ${done}/${total}`),
+      const { cards, notFound } = await resolveCards(
+        names,
+        (done, total) => setProgress(`Looking up card types… ${done}/${total}`),
+        parsed.versions,
       );
       onLoaded({ parsed, cards, notFound });
       setOpen(false);
